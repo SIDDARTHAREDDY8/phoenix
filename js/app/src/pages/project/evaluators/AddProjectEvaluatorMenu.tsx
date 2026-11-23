@@ -176,10 +176,12 @@ function ProjectEvaluatorMenuItems({
           </MenuSection>
         ) : null}
         {/* Each section names the kind, and each item names its full action
-            so a row reads on its own. "Add existing" shares the evaluator
-            itself, so edits to it apply everywhere it runs; "Copy existing"
-            creates a new evaluator that can change without affecting the
-            original. Each submenu restates that difference at its top. */}
+            so a row reads on its own. Every kind offers "New" and "Copy
+            existing", in that order, so the sections line up. Only code adds
+            "Add existing": LLM and decision evaluators already share their
+            logic through saved prompts and saved decisions, while code has no
+            registry to share through, so its evaluator is shared instead.
+            Each submenu restates what picking an evaluator does to it. */}
         <MenuSection>
           <MenuSectionTitle title="LLM" />
           <MenuItem
@@ -207,21 +209,21 @@ function ProjectEvaluatorMenuItems({
             New code evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Add existing code evaluator"
-            hint={SHARE_HINT}
-            icon={<Icons.Code />}
-            evaluators={codeEvaluators}
-            onAction={(evaluatorId) =>
-              navigate(creationPaths.attach(evaluatorId))
-            }
-          />
-          <EvaluatorSubmenu
             label="Copy existing code evaluator"
             hint={COPY_HINT}
             icon={<Icons.Duplicate />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
               navigate(creationPaths.copyCode(evaluatorId))
+            }
+          />
+          <EvaluatorSubmenu
+            label="Add existing code evaluator"
+            hint={SHARE_HINT}
+            icon={<Icons.Link2 />}
+            evaluators={codeEvaluators}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.attach(evaluatorId))
             }
           />
         </MenuSection>
@@ -234,12 +236,12 @@ function ProjectEvaluatorMenuItems({
             New decision evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Add existing decision evaluator"
-            hint={SHARE_HINT}
-            icon={<Icons.Split />}
+            label="Copy existing decision evaluator"
+            hint={COPY_HINT}
+            icon={<Icons.Duplicate />}
             evaluators={decisionEvaluators}
             onAction={(evaluatorId) =>
-              navigate(creationPaths.attach(evaluatorId))
+              navigate(creationPaths.copyDecision(evaluatorId))
             }
           />
         </MenuSection>

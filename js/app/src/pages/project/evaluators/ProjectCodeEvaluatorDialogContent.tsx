@@ -58,7 +58,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   mode?: "create" | "update";
   /**
    * Whether this form saves the evaluator's definition, so input descriptions
-   * written here persist. Attaching an existing evaluator does not.
+   * written here persist. Adding an existing evaluator does not.
    */
   canDescribeInputs?: boolean;
 }) => {
@@ -70,18 +70,18 @@ export const ProjectCodeEvaluatorDialogContent = ({
   return (
     <EvaluatorFormDialogContent
       title={title}
-      submitLabel={mode === "create" ? "Attach evaluator" : "Save changes"}
+      submitLabel={mode === "create" ? "Add evaluator" : "Update"}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
       isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
       submitHint={formatUnboundVariablesHint(
         unboundVariables,
-        mode === "create" ? "attach" : "save"
+        mode === "create" ? "add" : "update"
       )}
       error={error}
       errorTitle={
         mode === "create"
-          ? "Failed to attach evaluator"
+          ? "Failed to add evaluator"
           : "Failed to update evaluator"
       }
       contentGap="var(--global-dimension-size-100)"

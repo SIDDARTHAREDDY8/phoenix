@@ -71,7 +71,10 @@ import {
   type CodeProjectEvaluatorDetails,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { useProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  type ProjectEvaluatorCreationPaths,
+  useProjectEvaluatorCreationPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { getProjectEvaluatorTargetIconSvg } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetIcon";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
@@ -83,6 +86,7 @@ import {
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
 const OTHER_CATEGORY = "other" as const;
@@ -245,6 +249,27 @@ const CUSTOM_EVALUATOR_KINDS = {
 const getCustomEvaluatorKind = (
   evaluator: Pick<CustomEvaluator, "__typename">
 ): CustomEvaluatorKind => CUSTOM_EVALUATOR_KINDS[evaluator.__typename];
+
+/** Where "Copy and edit" goes: a new, independent copy of the evaluator. */
+function getCustomEvaluatorCopyPath({
+  evaluator,
+  creationPaths,
+}: {
+  evaluator: Pick<CustomEvaluator, "__typename" | "id">;
+  creationPaths: ProjectEvaluatorCreationPaths;
+}): string {
+  const kind = getCustomEvaluatorKind(evaluator);
+  switch (kind) {
+    case "LLM":
+      return creationPaths.copyLlm(evaluator.id);
+    case "CODE":
+      return creationPaths.copyCode(evaluator.id);
+    case "DECISION":
+      return creationPaths.copyDecision(evaluator.id);
+    default:
+      return assertUnreachable(kind);
+  }
+}
 
 function getGalleryItemSection(item: GalleryItem): GallerySection {
   return item.kind === "custom"
@@ -688,10 +713,17 @@ function EvaluatorGallery({
             // The second press of a double-click deselects the card first.
             setSelection(getGalleryItemSelection(item));
             if (item.kind === "custom") {
+              // Activating a card takes its details panel's primary action:
+              // only a code evaluator is added as the same evaluator; the
+              // others share their logic through saved prompts and saved
+              // decisions, so they are copied.
               navigate(
-                getCustomEvaluatorKind(item.evaluator) === "LLM"
-                  ? creationPaths.copyLlm(item.evaluator.id)
-                  : creationPaths.attach(item.evaluator.id)
+                getCustomEvaluatorKind(item.evaluator) === "CODE"
+                  ? creationPaths.attach(item.evaluator.id)
+                  : getCustomEvaluatorCopyPath({
+                      evaluator: item.evaluator,
+                      creationPaths,
+                    })
               );
               return;
             }
@@ -844,9 +876,10 @@ function EvaluatorGallery({
                 }
                 onDuplicateEvaluator={() =>
                   navigate(
-                    getCustomEvaluatorKind(selectedItem.evaluator) === "LLM"
-                      ? creationPaths.copyLlm(selectedItem.evaluator.id)
-                      : creationPaths.copyCode(selectedItem.evaluator.id)
+                    getCustomEvaluatorCopyPath({
+                      evaluator: selectedItem.evaluator,
+                      creationPaths,
+                    })
                   )
                 }
               />
@@ -953,7 +986,7 @@ function CustomEvaluatorDetails({
       <DecisionCustomEvaluatorDetails
         evaluator={evaluatorSummary}
         details={data.evaluator}
-        onAttachEvaluator={onAttachEvaluator}
+        onDuplicateEvaluator={onDuplicateEvaluator}
       />
     );
   }
@@ -1202,11 +1235,11 @@ function CodeCustomEvaluatorDetails({
 function DecisionCustomEvaluatorDetails({
   evaluator,
   details,
-  onAttachEvaluator,
+  onDuplicateEvaluator,
 }: {
   evaluator: CustomEvaluator;
   details: ProjectEvaluatorDetailsQueryType["response"]["evaluator"];
-  onAttachEvaluator: () => void;
+  onDuplicateEvaluator: () => void;
 }) {
   return (
     <Flex direction="column" gap="size-300" minHeight="100%">
@@ -1220,8 +1253,8 @@ function DecisionCustomEvaluatorDetails({
         </Text>
         <DecisionEvaluatorSummary evaluator={details} />
       </Flex>
-      <EvaluatorDetailsAction onPress={onAttachEvaluator}>
-        Use this evaluator
+      <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
+        Copy and edit
       </EvaluatorDetailsAction>
     </Flex>
   );

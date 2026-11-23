@@ -10,7 +10,38 @@ import {
   BuildProjectEvaluatorMenu,
 } from "../AddProjectEvaluatorMenu";
 
-const navigate = vi.fn();
+const { navigate, evaluatorEdges } = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  evaluatorEdges: { current: [] as unknown[] },
+}));
+
+const llmEdge = {
+  evaluator: {
+    __typename: "LLMEvaluator",
+    id: "llm-1",
+    name: "correctness",
+    description: null,
+    kind: "LLM",
+  },
+};
+const codeEdge = {
+  evaluator: {
+    __typename: "CodeEvaluator",
+    id: "code-1",
+    name: "exact_match",
+    description: null,
+    kind: "CODE",
+  },
+};
+const decisionEdge = {
+  evaluator: {
+    __typename: "DecisionEvaluator",
+    id: "decision-1",
+    name: "relevance",
+    description: null,
+    kind: "DECISION",
+  },
+};
 
 vi.mock("react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRouter>()),
@@ -21,17 +52,7 @@ vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelay>()),
   useLazyLoadQuery: () => ({
     evaluators: {
-      edges: [
-        {
-          evaluator: {
-            __typename: "LLMEvaluator",
-            id: "llm-1",
-            name: "correctness",
-            description: null,
-            kind: "LLM",
-          },
-        },
-      ],
+      edges: evaluatorEdges.current,
       pageInfo: { hasNextPage: false },
     },
   }),
@@ -45,6 +66,7 @@ vi.mock("@phoenix/pages/project/evaluators/projectEvaluatorPaths", () => ({
     newDecision: "/new/decision",
     copyLlm: (id: string) => `/new/copy-llm/${id}`,
     copyCode: (id: string) => `/new/copy-code/${id}`,
+    copyDecision: (id: string) => `/new/copy-decision/${id}`,
     attach: (id: string) => `/new/attach/${id}`,
   }),
 }));
@@ -59,6 +81,7 @@ describe("project evaluator menus", () => {
   let root: Root;
   beforeEach(() => {
     navigate.mockReset();
+    evaluatorEdges.current = [llmEdge];
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -119,5 +142,48 @@ describe("project evaluator menus", () => {
       "New code evaluator",
       "New decision evaluator",
     ]);
+  });
+
+  it("offers every kind New and Copy existing, and only code Add existing", async () => {
+    evaluatorEdges.current = [llmEdge, codeEdge, decisionEdge];
+    await render(
+      <AddProjectEvaluatorMenu
+        size="M"
+        shouldShowGalleryLink={false}
+        defaultOpen
+      />
+    );
+    expect(getMenuItemNames()).toEqual([
+      "New LLM evaluator",
+      "Copy existing LLM evaluator",
+      "New code evaluator",
+      "Copy existing code evaluator",
+      "Add existing code evaluator",
+      "New decision evaluator",
+      "Copy existing decision evaluator",
+    ]);
+  });
+
+  it("copies a decision evaluator rather than sharing it", async () => {
+    evaluatorEdges.current = [decisionEdge];
+    await render(
+      <AddProjectEvaluatorMenu
+        size="M"
+        shouldShowGalleryLink={false}
+        defaultOpen
+      />
+    );
+    const submenuTrigger = Array.from(
+      document.querySelectorAll('[role="menuitem"]')
+    ).find(
+      (item) => item.textContent?.trim() === "Copy existing decision evaluator"
+    );
+    await act(async () => (submenuTrigger as HTMLElement).click());
+    const decisionItem = Array.from(
+      document.querySelectorAll('[role="menuitem"]')
+    ).find((item) => item.textContent?.includes("relevance"));
+    expect(decisionItem).toBeDefined();
+    await act(async () => (decisionItem as HTMLElement).click());
+    expect(navigate).toHaveBeenCalledWith("/new/copy-decision/decision-1");
   });
 });
