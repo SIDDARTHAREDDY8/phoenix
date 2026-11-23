@@ -870,7 +870,6 @@ async def patch_prompt(
 
 @router.delete(
     "/prompts/{prompt_identifier}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deletePrompt",
     summary="Delete a prompt",
     description="Delete a prompt and all its versions, tags, and labels by identifier.",
