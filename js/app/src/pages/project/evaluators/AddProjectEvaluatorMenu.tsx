@@ -3,19 +3,28 @@ import type {
   MenuTriggerProps,
   SubmenuTriggerProps,
 } from "react-aria-components";
-import { MenuSection, SubmenuTrigger } from "react-aria-components";
+import {
+  Autocomplete,
+  Input,
+  MenuSection,
+  SubmenuTrigger,
+  useFilter,
+} from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { SearchField, SearchIcon } from "@phoenix/components/core/field";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { Flex } from "@phoenix/components/core/layout";
 import { Loading } from "@phoenix/components/core/loading";
 import {
   Menu,
   MenuContainer,
+  MenuHeader,
   MenuItem,
   MenuSectionTitle,
   MenuTrigger,
@@ -263,8 +272,8 @@ const COPY_HINT =
   "Creates a new evaluator from a copy. Edits don't affect the original.";
 
 /**
- * A submenu of existing evaluators of one kind. It is left out when there are
- * none, rather than shown disabled.
+ * A searchable submenu of existing evaluators of one kind. It is left out when
+ * there are none, rather than shown disabled.
  */
 function EvaluatorSubmenu({
   label,
@@ -284,6 +293,7 @@ function EvaluatorSubmenu({
   }>;
   onAction: (id: string) => void;
 } & Omit<SubmenuTriggerProps, "children">) {
+  const { contains } = useFilter({ sensitivity: "base" });
   if (evaluators.length === 0) {
     return null;
   }
@@ -301,30 +311,49 @@ function EvaluatorSubmenu({
             {hint}
           </Text>
         </View>
-        <Menu
-          aria-label={label}
-          items={evaluators}
-          onAction={(key) => onAction(String(key))}
-        >
-          {(evaluator) => (
-            <MenuItem id={evaluator.id} textValue={evaluator.name}>
-              <Flex direction="column" gap="size-50">
-                <Text weight="heavy">{evaluator.name}</Text>
-                {evaluator.description ? (
-                  <Truncate maxLines={3} title={evaluator.description}>
-                    <Text size="S" color="text-700">
-                      {evaluator.description}
+        <Autocomplete filter={contains}>
+          <MenuHeader>
+            <SearchField
+              aria-label={`Search ${label.toLowerCase()}`}
+              autoFocus
+              size="S"
+              variant="quiet"
+            >
+              <SearchIcon />
+              <Input placeholder="Search evaluators" />
+            </SearchField>
+          </MenuHeader>
+          <Menu
+            aria-label={label}
+            items={evaluators}
+            onAction={(key) => onAction(String(key))}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={icon} />}
+                description="No matching evaluators"
+              />
+            )}
+          >
+            {(evaluator) => (
+              <MenuItem id={evaluator.id} textValue={evaluator.name}>
+                <Flex direction="column" gap="size-50">
+                  <Text weight="heavy">{evaluator.name}</Text>
+                  {evaluator.description ? (
+                    <Truncate maxLines={3} title={evaluator.description}>
+                      <Text size="S" color="text-700">
+                        {evaluator.description}
+                      </Text>
+                    </Truncate>
+                  ) : (
+                    <Text size="S" color="text-500" fontStyle="italic">
+                      No description
                     </Text>
-                  </Truncate>
-                ) : (
-                  <Text size="S" color="text-500" fontStyle="italic">
-                    No description
-                  </Text>
-                )}
-              </Flex>
-            </MenuItem>
-          )}
-        </Menu>
+                  )}
+                </Flex>
+              </MenuItem>
+            )}
+          </Menu>
+        </Autocomplete>
       </MenuContainer>
     </SubmenuTrigger>
   );

@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
 import type * as ReactRouter from "react-router";
+import { userEvent, waitFor } from "storybook/test";
 
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 
@@ -164,6 +165,26 @@ describe("project evaluator menus", () => {
     ]);
   });
 
+  /** Opens a kind's existing-evaluator submenu the way a pointer user does. */
+  const openSubmenu = async (label: string) => {
+    const submenuTrigger = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]')
+    ).find((item) => item.textContent?.trim() === label);
+    expect(submenuTrigger, label).toBeDefined();
+    await userEvent.setup().click(submenuTrigger as HTMLElement);
+    await waitFor(() =>
+      expect(
+        document.querySelector(`[role="menu"][aria-label="${label}"]`)
+      ).not.toBeNull()
+    );
+  };
+  const getSubmenuItems = (label: string) =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        `[role="menu"][aria-label="${label}"] [role="menuitem"]`
+      )
+    );
+
   it("copies a decision evaluator rather than sharing it", async () => {
     evaluatorEdges.current = [decisionEdge];
     await render(
@@ -173,17 +194,41 @@ describe("project evaluator menus", () => {
         defaultOpen
       />
     );
-    const submenuTrigger = Array.from(
-      document.querySelectorAll('[role="menuitem"]')
-    ).find(
-      (item) => item.textContent?.trim() === "Copy existing decision evaluator"
-    );
-    await act(async () => (submenuTrigger as HTMLElement).click());
-    const decisionItem = Array.from(
-      document.querySelectorAll('[role="menuitem"]')
-    ).find((item) => item.textContent?.includes("relevance"));
-    expect(decisionItem).toBeDefined();
-    await act(async () => (decisionItem as HTMLElement).click());
+    await openSubmenu("Copy existing decision evaluator");
+    const [decisionItem] = getSubmenuItems("Copy existing decision evaluator");
+    expect(decisionItem.textContent).toContain("relevance");
+    await userEvent.setup().click(decisionItem);
     expect(navigate).toHaveBeenCalledWith("/new/copy-decision/decision-1");
+  });
+
+  it("narrows a copy submenu to the evaluators whose names match the search", async () => {
+    evaluatorEdges.current = [
+      decisionEdge,
+      {
+        evaluator: {
+          ...decisionEdge.evaluator,
+          id: "decision-2",
+          name: "toxicity",
+        },
+      },
+    ];
+    await render(
+      <AddProjectEvaluatorMenu
+        size="M"
+        shouldShowGalleryLink={false}
+        defaultOpen
+      />
+    );
+    const label = "Copy existing decision evaluator";
+    await openSubmenu(label);
+    expect(getSubmenuItems(label)).toHaveLength(2);
+    const search = document.querySelector<HTMLInputElement>(
+      `input[aria-label="Search ${label.toLowerCase()}"]`
+    );
+    expect(search).not.toBeNull();
+    await userEvent.setup().type(search as HTMLInputElement, "tox");
+    const items = getSubmenuItems(label);
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain("toxicity");
   });
 });
