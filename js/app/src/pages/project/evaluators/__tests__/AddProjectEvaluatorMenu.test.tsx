@@ -16,37 +16,51 @@ const { navigate, evaluatorEdges } = vi.hoisted(() => ({
   evaluatorEdges: { current: [] as unknown[] },
 }));
 
-const llmEdge = {
+const CURRENT_PROJECT = { id: "project-1", name: "checkout-agent" };
+const OTHER_PROJECT = { id: "project-2", name: "support-bot" };
+
+/** An evaluator as the menu's query returns it, used in the given projects. */
+const evaluatorEdge = ({
+  usedIn = [OTHER_PROJECT],
+  ...evaluator
+}: {
+  __typename: string;
+  id: string;
+  name: string;
+  kind: string;
+  usedIn?: ReadonlyArray<{ id: string; name: string }>;
+}) => ({
   evaluator: {
-    __typename: "LLMEvaluator",
-    id: "llm-1",
-    name: "correctness",
+    ...evaluator,
     description: null,
-    kind: "LLM",
+    projects: { edges: usedIn.map((project) => ({ project })) },
+    datasets: { edges: [] },
   },
-};
-const codeEdge = {
-  evaluator: {
-    __typename: "CodeEvaluator",
-    id: "code-1",
-    name: "exact_match",
-    description: null,
-    kind: "CODE",
-  },
-};
-const decisionEdge = {
-  evaluator: {
-    __typename: "DecisionEvaluator",
-    id: "decision-1",
-    name: "relevance",
-    description: null,
-    kind: "DECISION",
-  },
-};
+});
+
+const llmEdge = evaluatorEdge({
+  __typename: "LLMEvaluator",
+  id: "llm-1",
+  name: "correctness",
+  kind: "LLM",
+});
+const codeEdge = evaluatorEdge({
+  __typename: "CodeEvaluator",
+  id: "code-1",
+  name: "exact_match",
+  kind: "CODE",
+});
+const decisionEdge = evaluatorEdge({
+  __typename: "DecisionEvaluator",
+  id: "decision-1",
+  name: "relevance",
+  kind: "DECISION",
+});
 
 vi.mock("react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRouter>()),
   useNavigate: () => navigate,
+  useParams: () => ({ projectId: CURRENT_PROJECT.id }),
 }));
 
 vi.mock("react-relay", async (importOriginal) => ({
@@ -204,13 +218,12 @@ describe("project evaluator menus", () => {
   it("narrows a copy submenu to the evaluators whose names match the search", async () => {
     evaluatorEdges.current = [
       decisionEdge,
-      {
-        evaluator: {
-          ...decisionEdge.evaluator,
-          id: "decision-2",
-          name: "toxicity",
-        },
-      },
+      evaluatorEdge({
+        __typename: "DecisionEvaluator",
+        id: "decision-2",
+        name: "toxicity",
+        kind: "DECISION",
+      }),
     ];
     await render(
       <AddProjectEvaluatorMenu
@@ -230,5 +243,43 @@ describe("project evaluator menus", () => {
     const items = getSubmenuItems(label);
     expect(items).toHaveLength(1);
     expect(items[0].textContent).toContain("toxicity");
+  });
+
+  it("says where each evaluator is used, and only adds one this project lacks", async () => {
+    evaluatorEdges.current = [
+      evaluatorEdge({
+        __typename: "CodeEvaluator",
+        id: "code-here",
+        name: "exact_match",
+        kind: "CODE",
+        usedIn: [CURRENT_PROJECT, OTHER_PROJECT],
+      }),
+      evaluatorEdge({
+        __typename: "CodeEvaluator",
+        id: "code-elsewhere",
+        name: "json_valid",
+        kind: "CODE",
+      }),
+    ];
+    await render(
+      <AddProjectEvaluatorMenu
+        size="M"
+        shouldShowGalleryLink={false}
+        defaultOpen
+      />
+    );
+    await openSubmenu("Copy existing code evaluator");
+    expect(
+      getSubmenuItems("Copy existing code evaluator").map(
+        (item) => item.textContent
+      )
+    ).toEqual([
+      expect.stringContaining("Used in this project, support-bot"),
+      expect.stringContaining("Used in support-bot"),
+    ]);
+    await openSubmenu("Add existing code evaluator");
+    const addable = getSubmenuItems("Add existing code evaluator");
+    expect(addable).toHaveLength(1);
+    expect(addable[0].textContent).toContain("json_valid");
   });
 });

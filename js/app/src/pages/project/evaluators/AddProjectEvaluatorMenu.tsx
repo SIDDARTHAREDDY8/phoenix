@@ -11,7 +11,8 @@ import {
   useFilter,
 } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
@@ -32,6 +33,7 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
+import { formatEvaluatorUsage } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import {
   useProjectEvaluatorCreationPaths,
@@ -143,12 +145,25 @@ function ProjectEvaluatorMenuItems({
   // the list or over the gallery, whichever the menu is in.
   const creationPaths = useProjectEvaluatorCreationPaths();
   const { gallery } = useProjectEvaluatorPaths();
+  const { projectId } = useParams();
+  invariant(projectId, "projectId is required");
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
     { fetchPolicy: "store-and-network" }
   );
-  const evaluators = data.evaluators.edges.map(({ evaluator }) => evaluator);
+  const evaluators = data.evaluators.edges.map(({ evaluator }) => {
+    const projects = evaluator.projects.edges.map(({ project }) => project);
+    return {
+      ...evaluator,
+      isInProject: projects.some((project) => project.id === projectId),
+      usage: formatEvaluatorUsage({
+        projects,
+        currentProjectId: projectId,
+        numDatasets: evaluator.datasets.edges.length,
+      }),
+    };
+  });
   const llmEvaluators = evaluators.filter(
     (evaluator) => evaluator.__typename === "LLMEvaluator"
   );
@@ -226,11 +241,15 @@ function ProjectEvaluatorMenuItems({
               navigate(creationPaths.copyCode(evaluatorId))
             }
           />
+          {/* One already in this project is left out: a project runs an
+              evaluator once, and adding it again would clash with its name. */}
           <EvaluatorSubmenu
             label="Add existing code evaluator"
             hint={SHARE_HINT}
             icon={<Icons.Link2 />}
-            evaluators={codeEvaluators}
+            evaluators={codeEvaluators.filter(
+              (evaluator) => !evaluator.isInProject
+            )}
             onAction={(evaluatorId) =>
               navigate(creationPaths.attach(evaluatorId))
             }
@@ -246,7 +265,7 @@ function ProjectEvaluatorMenuItems({
           </MenuItem>
           <EvaluatorSubmenu
             label="Copy existing decision evaluator"
-            hint={COPY_HINT}
+            hint={COPY_DECISION_HINT}
             icon={<Icons.Duplicate />}
             evaluators={decisionEvaluators}
             onAction={(evaluatorId) =>
@@ -267,9 +286,12 @@ function ProjectEvaluatorMenuItems({
 }
 
 const SHARE_HINT =
-  "Adds the same evaluator. Edits to it apply everywhere it runs.";
+  "Adds the same evaluator. Edits to it apply everywhere it is used.";
 const COPY_HINT =
-  "Creates a new evaluator from a copy. Edits don't affect the original.";
+  "Creates a new evaluator from a copy of its definition. Edits don't affect the original, and you choose where the copy runs.";
+// A copy starts from the same saved decision, which the original also runs.
+const COPY_DECISION_HINT =
+  "Creates a new evaluator from its decision and scoring. Decision edits save as a new version of the same saved decision.";
 
 /**
  * A searchable submenu of existing evaluators of one kind. It is left out when
@@ -290,6 +312,8 @@ function EvaluatorSubmenu({
     id: string;
     name: string;
     description: string | null;
+    /** Where the evaluator is used, which tells similar names apart. */
+    usage: string;
   }>;
   onAction: (id: string) => void;
 } & Omit<SubmenuTriggerProps, "children">) {
@@ -349,6 +373,9 @@ function EvaluatorSubmenu({
                       No description
                     </Text>
                   )}
+                  <Text size="XS" color="text-500">
+                    {evaluator.usage}
+                  </Text>
                 </Flex>
               </MenuItem>
             )}

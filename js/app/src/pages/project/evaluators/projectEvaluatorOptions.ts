@@ -35,6 +35,21 @@ export const projectEvaluatorOptionsQuery = graphql`
           name
           description
           kind
+          projects {
+            edges {
+              project: node {
+                id
+                name
+              }
+            }
+          }
+          datasets {
+            edges {
+              dataset: node {
+                id
+              }
+            }
+          }
         }
       }
       pageInfo {

@@ -350,7 +350,7 @@ const ProjectEvaluatorAddExistingSummary = ({
       <Flex direction="column" gap="size-100">
         <EvaluatorSectionHeader
           title="Evaluator"
-          description="Adds this same evaluator to the project. Edits to it apply everywhere it runs."
+          description="Adds this same evaluator to the project. Edits to it apply everywhere it is used."
         />
         <View
           borderRadius="medium"

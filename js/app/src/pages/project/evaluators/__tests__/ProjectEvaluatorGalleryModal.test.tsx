@@ -82,7 +82,16 @@ describe("ProjectEvaluatorGalleryModal", () => {
         edges: [
           {
             cursor: "cursor-1",
-            evaluator: { ...decisionEvaluator, description: null },
+            evaluator: {
+              ...decisionEvaluator,
+              description: null,
+              projects: {
+                edges: [
+                  { project: { id: "project-2", name: "support-bot" } },
+                ],
+              },
+              datasets: { edges: [] },
+            },
             node: decisionEvaluator,
           },
         ],
@@ -124,6 +133,7 @@ describe("ProjectEvaluatorGalleryModal", () => {
 
     const details = document.querySelector("aside");
     expect(details?.textContent).toContain("relevance-decision");
+    expect(details?.textContent).toContain("Used in support-bot");
     expect(details?.textContent).toContain("output");
     const buttonLabels = Array.from(
       details?.querySelectorAll("button") ?? []
