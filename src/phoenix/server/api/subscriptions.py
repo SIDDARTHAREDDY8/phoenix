@@ -26,9 +26,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import ProjectKindName
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
@@ -822,13 +820,9 @@ async def _ensure_project(session: AsyncSession, project_name: str) -> None:
         )
     )
     if project_id is None:
-        kind: ProjectKindName = (
-            "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "EXPERIMENT"
-        )
         await session.execute(
             insert(models.Project).values(
                 name=project_name,
-                kind=kind,
                 description="Traces from experiment runs",
             )
         )
