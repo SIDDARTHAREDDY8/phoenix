@@ -15,6 +15,16 @@ class TestToConnectionConfig:
     def test_openai_without_overrides_stores_no_connection(self) -> None:
         assert to_connection_config(ModelProvider.OPENAI, ConnectionConfigInput()) is None
 
+    def test_openai_base_url_override_defaults_to_chat_completions(self) -> None:
+        base_url = "https://openai-compatible.example/v1"
+        connection = to_connection_config(
+            ModelProvider.OPENAI,
+            ConnectionConfigInput(base_url=base_url),
+        )
+        assert isinstance(connection, OpenAIConnectionConfig)
+        assert connection.base_url == base_url
+        assert connection.openai_api_type == "chat_completions"
+
     @pytest.mark.parametrize(
         ("openai_api_type", "expected_api_type"),
         [

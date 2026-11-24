@@ -67,22 +67,25 @@ def to_connection_config(
     model_provider: ModelProvider,
     input: ConnectionConfigInput | None,
 ) -> ConnectionConfig | None:
-    """Convert a flat ConnectionConfigInput to the typed discriminated union for DB storage."""
+    """Convert provider overrides to a typed connection config for DB storage.
+
+    Return None when no connection override applies, preserving default provider routing.
+    """
     if input is None:
         return None
 
     provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-    api_type = input.openai_api_type.value if input.openai_api_type else "chat_completions"
 
     if provider_key in OPENAI_SDK_STYLE_PROVIDER_KEYS:
-        if input.base_url is None and input.openai_api_type is None:
+        has_openai_overrides = input.base_url is not None or input.openai_api_type is not None
+        if not has_openai_overrides:
             return None
         return OpenAIConnectionConfig(
             type="openai",
             base_url=input.base_url,
             organization=input.organization,
             project=input.project,
-            openai_api_type=api_type,
+            openai_api_type=(input.openai_api_type or OpenAIApiType.CHAT_COMPLETIONS).value,
         )
 
     if provider_key is GenerativeProviderKey.AZURE_OPENAI:
@@ -91,7 +94,7 @@ def to_connection_config(
         return AzureOpenAIConnectionConfig(
             type="azure_openai",
             azure_endpoint=input.azure_endpoint,
-            openai_api_type=api_type,
+            openai_api_type=(input.openai_api_type or OpenAIApiType.CHAT_COMPLETIONS).value,
         )
 
     if provider_key is GenerativeProviderKey.ANTHROPIC:
