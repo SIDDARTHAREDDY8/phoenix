@@ -984,7 +984,6 @@ def create_graphql_router(
     secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
-    cleanup_worker: Optional[CleanupWorker] = None,
 ) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
@@ -1026,7 +1025,6 @@ def create_graphql_router(
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
-            cleanup_worker=cleanup_worker,
         )
 
     router = GraphQLRouter(
@@ -1312,11 +1310,7 @@ def create_app(
     cleanup_worker: Optional[CleanupWorker] = (
         None if read_only else CleanupWorker(db, event_queue=dml_event_handler)
     )
-    experiment_sweeper = ExperimentSweeper(
-        db,
-        event_queue=dml_event_handler,
-        wake_cleanup_worker=(cleanup_worker.wake if cleanup_worker is not None else (lambda: None)),
-    )
+    experiment_sweeper = ExperimentSweeper(db, event_queue=dml_event_handler)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1336,7 +1330,6 @@ def create_app(
         sandbox_runtime=sandbox_runtime,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
-        cleanup_worker=cleanup_worker,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -1621,7 +1614,6 @@ def create_app(
     app.state.online_eval_session_producer = online_eval_session_producer
     app.state.online_eval_trace_producer = online_eval_trace_producer
     app.state.experiment_runner = experiment_runner
-    app.state.cleanup_worker = cleanup_worker
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.
@@ -1645,7 +1637,6 @@ def create_app(
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
-        cleanup_worker=cleanup_worker,
         app=app,
     )
     app = _add_get_token_store_method(app=app, token_store=token_store)
@@ -1755,7 +1746,6 @@ def _get_build_graphql_context_function(
     secret: Optional[SecretStr],
     token_store: Optional[TokenStore],
     email_sender: Optional[EmailSender],
-    cleanup_worker: Optional[CleanupWorker] = None,
     app: Optional[FastAPI] = None,
 ) -> Callable[[Optional[PhoenixUser]], Context]:
     """Factory for creating GraphQL context."""
@@ -1785,7 +1775,6 @@ def _get_build_graphql_context_function(
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
-            cleanup_worker=cleanup_worker,
             request=request,
         )
 
