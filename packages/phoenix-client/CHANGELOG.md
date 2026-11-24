@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.8.0...arize-phoenix-client-v3.8.1) (2026-11-24)
+
+
+### Documentation
+
+* **client:** fix PromptVersion and get_traces examples in README ([#18129](https://github.com/Arize-ai/phoenix/issues/18129)) ([e0b90fe](https://github.com/Arize-ai/phoenix/commit/e0b90fef1eb25925d383c49833bf95e49d583525))
+
 ## [3.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.7.0...arize-phoenix-client-v3.8.0) (2026-11-23)
 
 
